@@ -5,6 +5,8 @@ import { TradeLog } from './components/TradeLog';
 import { Dashboard } from './components/Dashboard';
 import { StrategyReport } from './components/StrategyReport';
 import { Calendar } from './components/Calendar';
+import { AccountRegistry } from './components/AccountRegistry';
+import { Setup } from './components/Setup';
 import { Trade } from './types/trade';
 import { sampleTrades } from './data/sampleTrades';
 import { Plus } from 'lucide-react';
@@ -81,6 +83,10 @@ function App() {
         return <StrategyReport trades={trades} />;
       case 'calendar':
         return <Calendar trades={trades} />;
+      case 'account-registry':
+        return <AccountRegistry trades={trades} />;
+      case 'setup':
+        return <Setup />;
       default:
         return null;
     }

@@ -10,7 +10,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }
     { id: 'trade-log', label: 'Trade Log' },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'strategy-report', label: 'Strategy Report' },
-    { id: 'calendar', label: 'Calendar' }
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'account-registry', label: 'Account Registry' },
+    { id: 'setup', label: 'Setup' }
   ];
 
   return (
