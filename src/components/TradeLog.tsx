@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trade } from '../types/trade';
+import { Trade, AppSettings } from '../types/trade';
 import { formatCurrency } from '../utils/calculations';
 import { Edit, Trash2, Check, X } from 'lucide-react';
 
@@ -7,9 +7,10 @@ interface TradeLogProps {
   trades: Trade[];
   onEditTrade: (trade: Trade) => void;
   onDeleteTrade: (tradeId: string) => void;
+  settings: AppSettings;
 }
 
-export const TradeLog: React.FC<TradeLogProps> = ({ trades, onEditTrade, onDeleteTrade }) => {
+export const TradeLog: React.FC<TradeLogProps> = ({ trades, onEditTrade, onDeleteTrade, settings }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
@@ -164,10 +165,10 @@ export const TradeLog: React.FC<TradeLogProps> = ({ trades, onEditTrade, onDelet
             {trades.map((trade, index) => (
               <tr key={trade.id} className={`hover:bg-gray-50 border-b ${editingId === trade.id ? 'bg-blue-50' : ''}`}>
                 <td className="px-2 py-3 text-sm border-r">{index + 1}</td>
-                <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'account')}</td>
+                <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'account', 'select', settings.accounts)}</td>
                 <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'type', 'select', ['Trade', 'Deposit', 'Withdrawal'])}</td>
                 <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'date', 'date')}</td>
-                <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'strategy')}</td>
+                <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'strategy', 'select', settings.strategies)}</td>
                 <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'pair')}</td>
                 <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'direction', 'select', ['Long', 'Short'])}</td>
                 <td className="px-2 py-3 text-xs border-r">{renderEditableCell(trade, 'lotSize', 'number')}</td>

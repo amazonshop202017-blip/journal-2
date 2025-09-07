@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Trade } from '../types/trade';
+import { Trade, AppSettings } from '../types/trade';
 import { formatCurrency, formatPercentage } from '../utils/calculations';
 import { BarChart } from './charts/BarChart';
 import { LineChart } from './charts/LineChart';
+import { Plus } from 'lucide-react';
 
 interface AccountRegistryProps {
   trades: Trade[];
+  settings: AppSettings;
+  onAddActivity: (activity: { type: 'Deposit' | 'Withdrawal'; amount: number; account: string }) => void;
 }
 
 interface AccountActivity {
@@ -21,20 +24,40 @@ interface AccountActivity {
   totalBalance?: number;
 }
 
-export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
+export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades, settings, onAddActivity }) => {
   const [selectedAccount, setSelectedAccount] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newActivity, setNewActivity] = useState({
+    type: 'Deposit' as 'Deposit' | 'Withdrawal',
+    amount: 0,
+    account: settings.accounts[0] || 'Account 1'
+  });
 
   // Calculate account statistics
   const calculateAccountStats = () => {
-    const totalDeposits = 18000.00;
-    const totalWithdrawals = 2000.00;
-    const currentBalance = 13701.32;
-    const equityGrowth = 71.27;
-    const netPL = 1701;
-    const maxDrawdown = -1604.00;
-    const maxDrawdownPercent = -11.49;
+    let filteredTrades = trades;
+    
+    if (selectedAccount !== 'All') {
+      filteredTrades = trades.filter(t => t.account === selectedAccount);
+    }
+    
+    if (startDate && endDate) {
+      filteredTrades = filteredTrades.filter(t => {
+        const tradeDate = new Date(t.date);
+        return tradeDate >= new Date(startDate) && tradeDate <= new Date(endDate);
+      });
+    }
+    
+    const totalDeposits = filteredTrades.filter(t => t.type === 'Deposit').reduce((sum, t) => sum + t.gainLoss, 0);
+    const totalWithdrawals = Math.abs(filteredTrades.filter(t => t.type === 'Withdrawal').reduce((sum, t) => sum + t.gainLoss, 0));
+    const tradingPL = filteredTrades.filter(t => t.type === 'Trade').reduce((sum, t) => sum + t.gainLoss - t.fees, 0);
+    const currentBalance = 100000 + totalDeposits - totalWithdrawals + tradingPL;
+    const equityGrowth = totalDeposits > 0 ? ((currentBalance - 100000) / totalDeposits) * 100 : 0;
+    const netPL = tradingPL;
+    const maxDrawdown = -1604.00; // Simplified
+    const maxDrawdownPercent = -11.49; // Simplified
 
     return {
       totalDeposits,
@@ -49,66 +72,68 @@ export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
 
   // Generate account activity data
   const generateAccountActivity = (): AccountActivity[] => {
-    const activities: AccountActivity[] = [
-      {
-        id: '1',
-        account: 'Account 1',
-        date: '2/1/2025',
-        activity: 'Deposit',
-        amount: 5000.00
-      },
-      {
-        id: '2',
-        account: 'Account 1',
-        date: '2/1/2025',
-        activity: 'Deposit',
-        amount: 5000.00
-      },
-      {
-        id: '3',
-        account: 'Account 1',
-        date: '4/1/2025',
-        activity: 'Withdraw',
-        amount: 2000.00
-      }
-    ];
+    const activities: AccountActivity[] = [];
 
-    // Add trade activities from existing trades
-    trades.forEach((trade, index) => {
-      if (trade.type === 'Trade') {
+    // Add deposit/withdrawal activities
+    trades.forEach((trade) => {
+      if (trade.type === 'Deposit' || trade.type === 'Withdrawal') {
         activities.push({
-          id: `trade-${trade.id}`,
-          account: 'Account 1',
+          id: trade.id,
+          account: trade.account,
           date: trade.date,
-          activity: 'Trade',
+          activity: trade.type === 'Withdrawal' ? 'Withdraw' : 'Deposit',
           amount: trade.gainLoss,
-          position: trade.direction,
-          symbol: trade.pair,
-          netPL: trade.gainLoss,
-          balance: trade.gainLoss,
-          totalBalance: 10000 + (index * 100)
         });
       }
     });
 
-    return activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Filter by selected account and date range
+    let filteredActivities = activities;
+    if (selectedAccount !== 'All') {
+      filteredActivities = activities.filter(a => a.account === selectedAccount);
+    }
+    if (startDate && endDate) {
+      filteredActivities = filteredActivities.filter(a => {
+        const activityDate = new Date(a.date);
+        return activityDate >= new Date(startDate) && activityDate <= new Date(endDate);
+      });
+    }
+
+    return filteredActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const handleAddActivity = () => {
+    onAddActivity({
+      type: newActivity.type,
+      amount: newActivity.amount,
+      account: newActivity.account
+    });
+    setNewActivity({
+      type: 'Deposit',
+      amount: 0,
+      account: settings.accounts[0] || 'Account 1'
+    });
+    setShowAddForm(false);
   };
 
   const stats = calculateAccountStats();
   const accountActivity = generateAccountActivity();
 
   // Deposits & Withdrawals Chart Data
+  const depositData = accountActivity.filter(a => a.activity === 'Deposit');
+  const withdrawalData = accountActivity.filter(a => a.activity === 'Withdraw');
+  
   const depositsWithdrawalsData = {
-    labels: ['2/1/2025', '2/1/2025', '4/1/2025'],
+    labels: [...new Set([...depositData.map(d => d.date), ...withdrawalData.map(w => w.date)])].slice(-5),
     datasets: [
       {
         label: 'Deposit',
-        data: [5000, 5000, 0],
+        data: depositData.slice(-5).map(d => d.amount),
         backgroundColor: '#FFB6C1',
       },
       {
         label: 'Withdraw',
-        data: [0, 0, 2000],
+        data: withdrawalData.slice(-5).map(w => Math.abs(w.amount)),
         backgroundColor: '#4A5568',
       }
     ]
@@ -157,8 +182,9 @@ export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-yellow-50"
             >
               <option>All</option>
-              <option>Account 1</option>
-              <option>Account 2</option>
+              {settings.accounts.map(account => (
+                <option key={account} value={account}>{account}</option>
+              ))}
             </select>
           </div>
           
@@ -180,6 +206,16 @@ export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-yellow-50"
               />
             </div>
+          </div>
+          
+          <div>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+            >
+              <Plus size={16} />
+              <span>Add Activity</span>
+            </button>
           </div>
         </div>
 
@@ -223,6 +259,61 @@ export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
         </div>
       </div>
 
+      {/* Add Activity Form */}
+      {showAddForm && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Add New Activity</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <select
+                value={newActivity.type}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, type: e.target.value as 'Deposit' | 'Withdrawal' }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="Deposit">Deposit</option>
+                <option value="Withdrawal">Withdrawal</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+              <input
+                type="number"
+                value={newActivity.amount}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Account</label>
+              <select
+                value={newActivity.account}
+                onChange={(e) => setNewActivity(prev => ({ ...prev, account: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                {settings.accounts.map(account => (
+                  <option key={account} value={account}>{account}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3 mt-4">
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddActivity}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md"
+            >
+              Add Activity
+            </button>
+          </div>
+        </div>
+      )}
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Deposits & Withdrawals */}
@@ -309,24 +400,24 @@ export const AccountRegistry: React.FC<AccountRegistryProps> = ({ trades }) => {
                 </tr>
               </thead>
               <tbody>
-                {accountActivity.filter(a => a.activity === 'Trade').slice(0, 15).map((activity) => (
-                  <tr key={activity.id} className="border-b hover:bg-gray-50">
+                {trades.filter(t => t.type === 'Trade').slice(0, 15).map((trade, index) => (
+                  <tr key={trade.id} className="border-b hover:bg-gray-50">
                     <td className="px-2 py-2">Account 1</td>
-                    <td className="px-2 py-2">{activity.date}</td>
+                    <td className="px-2 py-2">{trade.date}</td>
                     <td className="px-2 py-2">
                       <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                         Trade
                       </span>
                     </td>
-                    <td className="px-2 py-2">{activity.position}</td>
-                    <td className="px-2 py-2">{activity.symbol}</td>
+                    <td className="px-2 py-2">{trade.direction}</td>
+                    <td className="px-2 py-2">{trade.pair}</td>
                     <td className={`px-2 py-2 font-medium ${
-                      activity.amount > 0 ? 'text-green-600' : 'text-red-600'
+                      trade.gainLoss > 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {formatCurrency(activity.amount)}
+                      {formatCurrency(trade.gainLoss)}
                     </td>
-                    <td className="px-2 py-2">{formatCurrency(activity.balance || 0)}</td>
-                    <td className="px-2 py-2">{formatCurrency(activity.totalBalance || 0)}</td>
+                    <td className="px-2 py-2">{formatCurrency(trade.gainLoss)}</td>
+                    <td className="px-2 py-2">{formatCurrency(100000 + (index * 100))}</td>
                   </tr>
                 ))}
               </tbody>

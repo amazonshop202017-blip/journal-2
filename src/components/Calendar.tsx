@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Trade } from '../types/trade';
+import { Trade, AppSettings } from '../types/trade';
 import { formatCurrency } from '../utils/calculations';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CalendarProps {
   trades: Trade[];
+  settings: AppSettings;
 }
 
 interface DayData {
@@ -15,7 +16,7 @@ interface DayData {
   tradeCount: number;
 }
 
-export const Calendar: React.FC<CalendarProps> = ({ trades }) => {
+export const Calendar: React.FC<CalendarProps> = ({ trades, settings }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -204,6 +205,9 @@ export const Calendar: React.FC<CalendarProps> = ({ trades }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">ACCOUNT</label>
               <select className="w-full px-3 py-2 border border-gray-300 rounded-md bg-pink-50">
                 <option>All</option>
+                {settings.accounts.map(account => (
+                  <option key={account} value={account}>{account}</option>
+                ))}
               </select>
             </div>
           </div>

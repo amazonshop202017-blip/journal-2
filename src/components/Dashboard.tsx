@@ -1,21 +1,33 @@
 import React from 'react';
-import { Trade } from '../types/trade';
-import { calculateStats, getAccountBalance, getMonthlyPL, formatCurrency, formatPercentage } from '../utils/calculations';
+import { Trade, AppSettings } from '../types/trade';
+import { calculateStats, getAccountBalance, getMonthlyPL, formatCurrency, formatPercentage, getStrategyBreakdown, getPairBreakdown, getMostUsedStrategy, getMostUsedPair } from '../utils/calculations';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
 import { PieChart } from './charts/PieChart';
+import { useState } from 'react';
 
 interface DashboardProps {
   trades: Trade[];
+  settings: AppSettings;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
-  const stats = calculateStats(trades);
-  const currentBalance = getAccountBalance(trades);
+export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
+  const [selectedAccount, setSelectedAccount] = useState('All');
+  const [dateRange, setDateRange] = useState({
+    startDate: '2025-01-01',
+    endDate: '2025-12-31'
+  });
+  
+  const stats = calculateStats(trades, dateRange, selectedAccount);
+  const currentBalance = getAccountBalance(trades, selectedAccount);
   const startingBalance = 100000;
   const totalGainLoss = currentBalance - startingBalance;
   const changePercentage = ((totalGainLoss / startingBalance) * 100);
-  const monthlyPL = getMonthlyPL(trades);
+  const monthlyPL = getMonthlyPL(trades, selectedAccount);
+  const strategyBreakdown = getStrategyBreakdown(trades, selectedAccount);
+  const pairBreakdown = getPairBreakdown(trades, selectedAccount);
+  const mostUsedStrategy = getMostUsedStrategy(trades, selectedAccount);
+  const mostUsedPair = getMostUsedPair(trades, selectedAccount);
 
   // Account Balance Chart Data
   const balanceData = {
@@ -30,41 +42,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
   };
 
   // Monthly P&L Chart Data
-  const monthlyLabels = Object.keys(monthlyPL);
-  const monthlyGains = Object.values(monthlyPL).map(data => data.gain);
-  const monthlyLosses = Object.values(monthlyPL).map(data => -data.loss);
+  const monthlyLabels = Object.keys(monthlyPL).slice(-5);
+  const monthlyGains = monthlyLabels.map(month => monthlyPL[month]?.gain || 0);
+  const monthlyLosses = monthlyLabels.map(month => -(monthlyPL[month]?.loss || 0));
 
   const monthlyPLData = {
-    labels: ['January 2025', 'February 2025', 'March 2025', 'April 2025', 'May 2025'],
+    labels: monthlyLabels.length > 0 ? monthlyLabels : ['January 2025', 'February 2025', 'March 2025', 'April 2025', 'May 2025'],
     datasets: [
       {
         label: 'Gain',
-        data: [0, 0, 582, 1895, 2342],
+        data: monthlyGains.length > 0 ? monthlyGains : [0, 0, 582, 1895, 2342],
         backgroundColor: '#9C27B0',
       },
       {
         label: 'Loss',
-        data: [0, 0, 0, -1218, 0],
+        data: monthlyLosses.length > 0 ? monthlyLosses : [0, 0, 0, -1218, 0],
         backgroundColor: '#E91E63',
       }
     ]
   };
 
   // Strategy Breakdown Chart Data
+  const strategyLabels = Object.keys(strategyBreakdown);
+  const strategyValues = Object.values(strategyBreakdown);
+  
   const strategyData = {
-    labels: ['Strategy 1'],
+    labels: strategyLabels.length > 0 ? strategyLabels : ['Strategy 1'],
     datasets: [{
       label: 'Strategy Performance',
-      data: [3954],
+      data: strategyValues.length > 0 ? strategyValues : [3954],
       backgroundColor: '#14B8A6',
     }]
   };
 
   // Pair Breakdown Chart Data
+  const pairLabels = Object.keys(pairBreakdown);
+  const pairValues = Object.values(pairBreakdown);
+  const pairPercentages = pairValues.length > 0 ? 
+    pairValues.map(val => (val / pairValues.reduce((a, b) => a + b, 0)) * 100) : [100];
+  
   const pairData = {
-    labels: ['XAUUSD'],
+    labels: pairLabels.length > 0 ? pairLabels : ['XAUUSD'],
     datasets: [{
-      data: [100],
+      data: pairPercentages,
       backgroundColor: ['#9C27B0'],
     }]
   };
@@ -83,15 +103,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
           <div className="space-y-4">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Start Date</span>
-              <span className="text-sm font-medium">1 - Jan - 25</span>
+              <input
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                className="text-sm font-medium border border-gray-300 rounded px-2 py-1"
+              />
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">End Date</span>
-              <span className="text-sm font-medium">31 - Dec - 25</span>
+              <input
+                type="date"
+                value={dateRange.endDate}
+                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                className="text-sm font-medium border border-gray-300 rounded px-2 py-1"
+              />
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Account</span>
-              <span className="text-sm font-medium">All ▼</span>
+              <select
+                value={selectedAccount}
+                onChange={(e) => setSelectedAccount(e.target.value)}
+                className="text-sm font-medium border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="All">All</option>
+                {settings.accounts.map(account => (
+                  <option key={account} value={account}>{account}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -231,11 +270,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades }) => {
           <div className="space-y-4">
             <div className="text-center">
               <span className="text-sm text-gray-600">Most Used Strategy</span>
-              <p className="text-lg font-medium">Strategy 1</p>
+              <p className="text-lg font-medium">{mostUsedStrategy}</p>
             </div>
             <div className="text-center">
               <span className="text-sm text-gray-600">Most Used Pair</span>
-              <p className="text-lg font-medium">XAU/USD</p>
+              <p className="text-lg font-medium">{mostUsedPair}</p>
             </div>
             <div className="text-center">
               <span className="text-sm text-gray-600">Win Rate</span>

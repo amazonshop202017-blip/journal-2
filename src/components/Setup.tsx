@@ -1,116 +1,77 @@
 import React, { useState } from 'react';
+import { AppSettings } from '../types/trade';
 
-interface Account {
-  id: string;
-  name: string;
-  isActive: boolean;
+interface SetupProps {
+  settings: AppSettings;
+  onUpdateSettings: (settings: AppSettings) => void;
 }
 
-interface Market {
-  id: string;
-  name: string;
-  isActive: boolean;
-}
+export const Setup: React.FC<SetupProps> = ({ settings, onUpdateSettings }) => {
+  const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [hasChanges, setHasChanges] = useState(false);
 
-interface Strategy {
-  id: string;
-  name: string;
-  isActive: boolean;
-}
-
-export const Setup: React.FC = () => {
-  const [currency, setCurrency] = useState('$');
-  const [accounts, setAccounts] = useState<Account[]>([
-    { id: '1', name: 'Account 1', isActive: true },
-    { id: '2', name: 'Account 2', isActive: false },
-    { id: '3', name: 'Account 3', isActive: false },
-    { id: '4', name: 'Account 4', isActive: false },
-    { id: '5', name: 'Account 5', isActive: false },
-  ]);
-
-  const [markets, setMarkets] = useState<Market[]>([
-    { id: '1', name: 'FOREX', isActive: true },
-    { id: '2', name: 'METAL', isActive: false },
-  ]);
-
-  const [strategies, setStrategies] = useState<Strategy[]>([
-    { id: '1', name: 'Strategy 1', isActive: true },
-    { id: '2', name: 'Strategy 2', isActive: false },
-  ]);
-
-  const addAccount = () => {
-    const newAccount: Account = {
-      id: Date.now().toString(),
-      name: `Account ${accounts.length + 1}`,
-      isActive: false
-    };
-    setAccounts([...accounts, newAccount]);
+  const updateLocalSettings = (newSettings: Partial<AppSettings>) => {
+    setLocalSettings(prev => ({ ...prev, ...newSettings }));
+    setHasChanges(true);
   };
 
-  const addMarket = () => {
-    const newMarket: Market = {
-      id: Date.now().toString(),
-      name: `Market ${markets.length + 1}`,
-      isActive: false
-    };
-    setMarkets([...markets, newMarket]);
+  const addAccount = () => {
+    const newAccounts = [...localSettings.accounts, `Account ${localSettings.accounts.length + 1}`];
+    updateLocalSettings({ accounts: newAccounts });
   };
 
   const addStrategy = () => {
-    const newStrategy: Strategy = {
-      id: Date.now().toString(),
-      name: `Strategy ${strategies.length + 1}`,
-      isActive: false
-    };
-    setStrategies([...strategies, newStrategy]);
+    const newStrategies = [...localSettings.strategies, `Strategy ${localSettings.strategies.length + 1}`];
+    updateLocalSettings({ strategies: newStrategies });
   };
 
-  const updateAccountName = (id: string, name: string) => {
-    setAccounts(accounts.map(acc => 
-      acc.id === id ? { ...acc, name } : acc
-    ));
+  const addMarket = () => {
+    const newMarkets = [...localSettings.markets, `Market ${localSettings.markets.length + 1}`];
+    updateLocalSettings({ markets: newMarkets });
   };
 
-  const updateMarketName = (id: string, name: string) => {
-    setMarkets(markets.map(market => 
-      market.id === id ? { ...market, name } : market
-    ));
+  const updateAccountName = (index: number, name: string) => {
+    const newAccounts = [...localSettings.accounts];
+    newAccounts[index] = name;
+    updateLocalSettings({ accounts: newAccounts });
   };
 
-  const updateStrategyName = (id: string, name: string) => {
-    setStrategies(strategies.map(strategy => 
-      strategy.id === id ? { ...strategy, name } : strategy
-    ));
+  const updateMarketName = (index: number, name: string) => {
+    const newMarkets = [...localSettings.markets];
+    newMarkets[index] = name;
+    updateLocalSettings({ markets: newMarkets });
   };
 
-  const toggleAccountActive = (id: string) => {
-    setAccounts(accounts.map(acc => 
-      acc.id === id ? { ...acc, isActive: !acc.isActive } : acc
-    ));
+  const updateStrategyName = (index: number, name: string) => {
+    const newStrategies = [...localSettings.strategies];
+    newStrategies[index] = name;
+    updateLocalSettings({ strategies: newStrategies });
   };
 
-  const toggleMarketActive = (id: string) => {
-    setMarkets(markets.map(market => 
-      market.id === id ? { ...market, isActive: !market.isActive } : market
-    ));
+  const removeAccount = (index: number) => {
+    const newAccounts = localSettings.accounts.filter((_, i) => i !== index);
+    updateLocalSettings({ accounts: newAccounts });
   };
 
-  const toggleStrategyActive = (id: string) => {
-    setStrategies(strategies.map(strategy => 
-      strategy.id === id ? { ...strategy, isActive: !strategy.isActive } : strategy
-    ));
+  const removeMarket = (index: number) => {
+    const newMarkets = localSettings.markets.filter((_, i) => i !== index);
+    updateLocalSettings({ markets: newMarkets });
   };
 
-  const removeAccount = (id: string) => {
-    setAccounts(accounts.filter(acc => acc.id !== id));
+  const removeStrategy = (index: number) => {
+    const newStrategies = localSettings.strategies.filter((_, i) => i !== index);
+    updateLocalSettings({ strategies: newStrategies });
   };
 
-  const removeMarket = (id: string) => {
-    setMarkets(markets.filter(market => market.id !== id));
+  const handleSave = () => {
+    onUpdateSettings(localSettings);
+    setHasChanges(false);
+    alert('Configuration saved successfully!');
   };
 
-  const removeStrategy = (id: string) => {
-    setStrategies(strategies.filter(strategy => strategy.id !== id));
+  const handleReset = () => {
+    setLocalSettings(settings);
+    setHasChanges(false);
   };
 
   return (
@@ -129,8 +90,8 @@ export const Setup: React.FC = () => {
             <span className="text-sm font-medium text-gray-700">SET YOUR CURRENCY</span>
           </div>
           <select 
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
+            value={localSettings.currency}
+            onChange={(e) => updateLocalSettings({ currency: e.target.value })}
             className="px-4 py-2 border border-gray-300 rounded-md bg-white text-lg font-medium"
           >
             <option value="$">$ (USD)</option>
@@ -152,22 +113,16 @@ export const Setup: React.FC = () => {
             <div className="bg-blue-50 rounded-lg p-3 mb-4">
               <h4 className="text-sm font-medium text-gray-700 text-center mb-3">ACCOUNT</h4>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {accounts.map((account) => (
-                  <div key={account.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={account.isActive}
-                      onChange={() => toggleAccountActive(account.id)}
-                      className="rounded border-gray-300"
-                    />
+                {localSettings.accounts.map((account, index) => (
+                  <div key={index} className="flex items-center space-x-2">
                     <input
                       type="text"
-                      value={account.name}
-                      onChange={(e) => updateAccountName(account.id, e.target.value)}
+                      value={account}
+                      onChange={(e) => updateAccountName(index, e.target.value)}
                       className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                     />
                     <button
-                      onClick={() => removeAccount(account.id)}
+                      onClick={() => removeAccount(index)}
                       className="text-red-500 hover:text-red-700 text-sm"
                     >
                       ×
@@ -196,22 +151,16 @@ export const Setup: React.FC = () => {
               <div className="bg-blue-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 text-center mb-3">MARKET</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {markets.map((market) => (
-                    <div key={market.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={market.isActive}
-                        onChange={() => toggleMarketActive(market.id)}
-                        className="rounded border-gray-300"
-                      />
+                  {localSettings.markets.map((market, index) => (
+                    <div key={index} className="flex items-center space-x-2">
                       <input
                         type="text"
-                        value={market.name}
-                        onChange={(e) => updateMarketName(market.id, e.target.value)}
+                        value={market}
+                        onChange={(e) => updateMarketName(index, e.target.value)}
                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                       />
                       <button
-                        onClick={() => removeMarket(market.id)}
+                        onClick={() => removeMarket(index)}
                         className="text-red-500 hover:text-red-700 text-sm"
                       >
                         ×
@@ -231,22 +180,16 @@ export const Setup: React.FC = () => {
               <div className="bg-blue-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 text-center mb-3">STRATEGY</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {strategies.map((strategy) => (
-                    <div key={strategy.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={strategy.isActive}
-                        onChange={() => toggleStrategyActive(strategy.id)}
-                        className="rounded border-gray-300"
-                      />
+                  {localSettings.strategies.map((strategy, index) => (
+                    <div key={index} className="flex items-center space-x-2">
                       <input
                         type="text"
-                        value={strategy.name}
-                        onChange={(e) => updateStrategyName(strategy.id, e.target.value)}
+                        value={strategy}
+                        onChange={(e) => updateStrategyName(index, e.target.value)}
                         className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                       />
                       <button
-                        onClick={() => removeStrategy(strategy.id)}
+                        onClick={() => removeStrategy(index)}
                         className="text-red-500 hover:text-red-700 text-sm"
                       >
                         ×
@@ -267,11 +210,28 @@ export const Setup: React.FC = () => {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-center">
-        <button className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+      <div className="flex justify-center space-x-4">
+        <button 
+          onClick={handleReset}
+          disabled={!hasChanges}
+          className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+        >
+          Reset Changes
+        </button>
+        <button 
+          onClick={handleSave}
+          disabled={!hasChanges}
+          className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+        >
           Save Configuration
         </button>
       </div>
+      
+      {hasChanges && (
+        <div className="text-center text-sm text-orange-600">
+          You have unsaved changes. Click "Save Configuration" to apply them.
+        </div>
+      )}
     </div>
   );
 };

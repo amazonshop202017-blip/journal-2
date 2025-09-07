@@ -43,3 +43,15 @@ export interface TradingStats {
   totalPL: number;
   avgPL: number;
 }
+
+export interface AppSettings {
+  currency: string;
+  accounts: string[];
+  markets: string[];
+  strategies: string[];
+}
+
+export interface DateRange {
+  startDate: string;
+  endDate: string;
+}

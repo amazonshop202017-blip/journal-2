@@ -1,21 +1,50 @@
 import React from 'react';
-import { Trade } from '../types/trade';
-import { calculateStats, formatCurrency, formatPercentage } from '../utils/calculations';
+import { Trade, AppSettings } from '../types/trade';
+import { calculateStats, formatCurrency, formatPercentage, getStrategyBreakdown, getPairBreakdown } from '../utils/calculations';
 import { BarChart } from './charts/BarChart';
 import { PieChart } from './charts/PieChart';
+import { useState } from 'react';
 
 interface StrategyReportProps {
   trades: Trade[];
+  settings: AppSettings;
 }
 
-export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
-  const stats = calculateStats(trades);
+export const StrategyReport: React.FC<StrategyReportProps> = ({ trades, settings }) => {
+  const [selectedStrategy, setSelectedStrategy] = useState(settings.strategies[0] || 'Strategy 1');
+  const [selectedAccount, setSelectedAccount] = useState('All');
+  
+  // Filter trades by selected strategy
+  const strategyTrades = trades.filter(t => t.type === 'Trade' && t.strategy === selectedStrategy);
+  const filteredTrades = selectedAccount === 'All' ? strategyTrades : strategyTrades.filter(t => t.account === selectedAccount);
+  
+  const stats = calculateStats(trades.filter(t => t.strategy === selectedStrategy), undefined, selectedAccount);
+  
+  // Calculate performance data
+  const wins = filteredTrades.filter(t => t.status === 'Win').length;
+  const losses = filteredTrades.filter(t => t.status === 'Loss').length;
+  const breakevens = filteredTrades.filter(t => t.status === 'Breakeven').length;
+  const total = wins + losses + breakevens;
+  
+  const winPercentage = total > 0 ? (wins / total) * 100 : 0;
+  const lossPercentage = total > 0 ? (losses / total) * 100 : 0;
+  const breakevenPercentage = total > 0 ? (breakevens / total) * 100 : 0;
+  
+  // Calculate profit/loss data
+  const totalProfit = filteredTrades.filter(t => t.gainLoss > 0).reduce((sum, t) => sum + t.gainLoss, 0);
+  const totalLoss = Math.abs(filteredTrades.filter(t => t.gainLoss < 0).reduce((sum, t) => sum + t.gainLoss, 0));
+  
+  // Calculate direction data
+  const longTrades = filteredTrades.filter(t => t.direction === 'Long');
+  const shortTrades = filteredTrades.filter(t => t.direction === 'Short');
+  const longProfit = longTrades.reduce((sum, t) => sum + t.gainLoss, 0);
+  const shortProfit = shortTrades.reduce((sum, t) => sum + t.gainLoss, 0);
   
   // Trade Performance Pie Chart Data
   const performanceData = {
     labels: ['Wins', 'Losses', 'Breakevens'],
     datasets: [{
-      data: [60, 30, 10], // Percentages
+      data: [winPercentage, lossPercentage, breakevenPercentage],
       backgroundColor: ['#FFB6C1', '#DDA0DD', '#F0E68C'],
     }]
   };
@@ -24,7 +53,7 @@ export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
   const profitLossData = {
     labels: ['Profit', 'Loss'],
     datasets: [{
-      data: [3318.00, -1344.00],
+      data: [totalProfit, -totalLoss],
       backgroundColor: ['#87CEEB', '#FFB6C1'],
     }]
   };
@@ -33,7 +62,7 @@ export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
   const directionData = {
     labels: ['Long', 'Short'],
     datasets: [{
-      data: [1344.00, 5294.00],
+      data: [longProfit, shortProfit],
       backgroundColor: ['#DDA0DD', '#DDA0DD'],
     }]
   };
@@ -45,11 +74,32 @@ export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Strategy Report</h1>
         <p className="text-sm text-gray-600">• FOREX Dashboard •</p>
         
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">STRATEGY:</label>
-          <select className="w-48 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
-            <option>Strategy 1</option>
-          </select>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">STRATEGY:</label>
+            <select 
+              value={selectedStrategy}
+              onChange={(e) => setSelectedStrategy(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+            >
+              {settings.strategies.map(strategy => (
+                <option key={strategy} value={strategy}>{strategy}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">ACCOUNT:</label>
+            <select 
+              value={selectedAccount}
+              onChange={(e) => setSelectedAccount(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
+            >
+              <option value="All">All</option>
+              {settings.accounts.map(account => (
+                <option key={account} value={account}>{account}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -99,7 +149,7 @@ export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
           </div>
           <div>
             <span className="text-gray-600">Account:</span>
-            <p className="font-medium">All</p>
+            <p className="font-medium">{selectedAccount}</p>
           </div>
           <div>
             <span className="text-gray-600">Avg. Win:</span>
@@ -134,7 +184,7 @@ export const StrategyReport: React.FC<StrategyReportProps> = ({ trades }) => {
               </tr>
             </thead>
             <tbody className="bg-white">
-              {trades.slice(0, 10).map((trade, index) => (
+              {filteredTrades.slice(0, 10).map((trade, index) => (
                 <tr key={trade.id} className="hover:bg-gray-50 border-b text-xs">
                   <td className="px-3 py-3 border-r">
                     <div className="space-y-1">
