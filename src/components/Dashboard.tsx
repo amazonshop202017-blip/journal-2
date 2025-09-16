@@ -1,9 +1,10 @@
 import React from 'react';
 import { Trade, AppSettings } from '../types/trade';
-import { calculateStats, getAccountBalance, getMonthlyPL, formatCurrency, formatPercentage, getStrategyBreakdown, getPairBreakdown, getMostUsedStrategy, getMostUsedPair } from '../utils/calculations';
+import { calculateStats, getAccountBalance, getMonthlyPL, formatCurrency, formatPercentage, getStrategyBreakdown, getPairBreakdown, getMostUsedStrategy, getMostUsedPair, getNetDailyPerformance, getTradeTimePerformance, getTradeDurationPerformance } from '../utils/calculations';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
 import { PieChart } from './charts/PieChart';
+import { ScatterChart } from './charts/ScatterChart';
 import { useState } from 'react';
 
 interface DashboardProps {
@@ -28,6 +29,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
   const pairBreakdown = getPairBreakdown(trades, selectedAccount);
   const mostUsedStrategy = getMostUsedStrategy(trades, selectedAccount);
   const mostUsedPair = getMostUsedPair(trades, selectedAccount);
+
+  // New performance data
+  const netDailyPerformance = getNetDailyPerformance(trades, dateRange, selectedAccount);
+  const tradeTimePerformance = getTradeTimePerformance(trades, dateRange, selectedAccount);
+  const tradeDurationPerformance = getTradeDurationPerformance(trades, dateRange, selectedAccount);
 
   // Account Balance Chart Data
   const balanceData = {
@@ -89,6 +95,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
     }]
   };
 
+  // Net Daily Performance Chart Data
+  const netDailyData = {
+    labels: netDailyPerformance.labels,
+    datasets: [{
+      label: 'Net Daily P&L',
+      data: netDailyPerformance.data,
+      backgroundColor: netDailyPerformance.data.map(value => value >= 0 ? '#10B981' : '#EF4444'),
+      borderColor: netDailyPerformance.data.map(value => value >= 0 ? '#059669' : '#DC2626'),
+      borderWidth: 1,
+    }]
+  };
+
+  // Trade Time Performance Scatter Data
+  const tradeTimeData = {
+    datasets: [{
+      label: 'Trade Time Performance',
+      data: tradeTimePerformance,
+      backgroundColor: tradeTimePerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      borderColor: tradeTimePerformance.map(point => point.y >= 0 ? '#059669' : '#DC2626'),
+    }]
+  };
+
+  // Trade Duration Performance Scatter Data
+  const tradeDurationData = {
+    datasets: [{
+      label: 'Trade Duration Performance',
+      data: tradeDurationPerformance,
+      backgroundColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      borderColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#059669' : '#DC2626'),
+    }]
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -145,6 +183,100 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-sm font-medium text-gray-700 mb-4 text-center">GAIN VS. LOSS</h3>
           <BarChart data={monthlyPLData} height={150} />
+        </div>
+      </div>
+
+      {/* New Performance Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Net Daily Performance */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Net daily P&L</h3>
+            <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center">
+              <span className="text-xs text-gray-600">i</span>
+            </div>
+          </div>
+          <BarChart data={netDailyData} height={200} options={{
+            scales: {
+              x: {
+                display: true,
+                grid: { display: false }
+              },
+              y: {
+                display: true,
+                grid: { color: '#f3f4f6' },
+                title: {
+                  display: true,
+                  text: 'P&L ($)'
+                }
+              }
+            }
+          }} />
+        </div>
+
+        {/* Trade Time Performance */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Trade time performance</h3>
+            <div className="flex space-x-2">
+              <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-xs text-gray-600">⚙</span>
+              </div>
+              <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-xs text-gray-600">i</span>
+              </div>
+            </div>
+          </div>
+          <ScatterChart 
+            data={tradeTimeData} 
+            height={200} 
+            options={{
+              xAxisTitle: 'Entry Time (Hour)',
+              scales: {
+                x: {
+                  min: 0,
+                  max: 24,
+                  ticks: {
+                    stepSize: 2,
+                    callback: function(value: any) {
+                      return value + ':00';
+                    }
+                  }
+                }
+              }
+            }}
+          />
+        </div>
+
+        {/* Trade Duration Performance */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Trade duration performance</h3>
+            <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center">
+              <span className="text-xs text-gray-600">i</span>
+            </div>
+          </div>
+          <ScatterChart 
+            data={tradeDurationData} 
+            height={200} 
+            options={{
+              xAxisTitle: 'Duration (Minutes)',
+              scales: {
+                x: {
+                  ticks: {
+                    callback: function(value: any) {
+                      const hours = Math.floor(value / 60);
+                      const minutes = Math.floor(value % 60);
+                      if (hours > 0) {
+                        return `${hours}h${minutes > 0 ? minutes + 'm' : ''}`;
+                      }
+                      return `${minutes}m`;
+                    }
+                  }
+                }
+              }
+            }}
+          />
         </div>
       </div>
 

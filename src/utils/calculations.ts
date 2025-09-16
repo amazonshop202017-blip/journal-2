@@ -160,6 +160,115 @@ export const getMostUsedPair = (trades: Trade[], selectedAccount?: string): stri
     pairCounts[a] > pairCounts[b] ? a : b, 'XAUUSD'
   );
 };
+
+export const getNetDailyPerformance = (trades: Trade[], dateRange?: { startDate: string; endDate: string }, selectedAccount?: string) => {
+  let filteredTrades = trades.filter(t => t.type === 'Trade');
+  
+  if (dateRange && dateRange.startDate && dateRange.endDate) {
+    filteredTrades = filteredTrades.filter(t => {
+      const tradeDate = new Date(t.date);
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      return tradeDate >= start && tradeDate <= end;
+    });
+  }
+  
+  if (selectedAccount && selectedAccount !== 'All') {
+    filteredTrades = filteredTrades.filter(t => t.account === selectedAccount);
+  }
+  
+  const dailyPL: { [key: string]: number } = {};
+  
+  filteredTrades.forEach(trade => {
+    const date = trade.date;
+    if (!dailyPL[date]) {
+      dailyPL[date] = 0;
+    }
+    dailyPL[date] += trade.gainLoss - trade.fees;
+  });
+  
+  const sortedDates = Object.keys(dailyPL).sort();
+  const labels = sortedDates.map(date => format(new Date(date), 'MM/dd/yy'));
+  const data = sortedDates.map(date => dailyPL[date]);
+  
+  return { labels, data };
+};
+
+export const getTradeTimePerformance = (trades: Trade[], dateRange?: { startDate: string; endDate: string }, selectedAccount?: string) => {
+  let filteredTrades = trades.filter(t => t.type === 'Trade' && t.entryTime);
+  
+  if (dateRange && dateRange.startDate && dateRange.endDate) {
+    filteredTrades = filteredTrades.filter(t => {
+      const tradeDate = new Date(t.date);
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      return tradeDate >= start && tradeDate <= end;
+    });
+  }
+  
+  if (selectedAccount && selectedAccount !== 'All') {
+    filteredTrades = filteredTrades.filter(t => t.account === selectedAccount);
+  }
+  
+  const timePerformanceData = filteredTrades.map(trade => {
+    // Parse time from format like "3:00:00 PM" or "15:00:00"
+    let hour = 0;
+    const timeStr = trade.entryTime.toLowerCase();
+    
+    if (timeStr.includes('pm') || timeStr.includes('am')) {
+      const [time, period] = timeStr.split(' ');
+      const [hourStr] = time.split(':');
+      hour = parseInt(hourStr);
+      if (period === 'pm' && hour !== 12) hour += 12;
+      if (period === 'am' && hour === 12) hour = 0;
+    } else {
+      const [hourStr] = timeStr.split(':');
+      hour = parseInt(hourStr);
+    }
+    
+    return {
+      x: hour + (Math.random() * 0.8 - 0.4), // Add slight jitter for better visualization
+      y: trade.gainLoss - trade.fees
+    };
+  });
+  
+  return timePerformanceData;
+};
+
+export const getTradeDurationPerformance = (trades: Trade[], dateRange?: { startDate: string; endDate: string }, selectedAccount?: string) => {
+  let filteredTrades = trades.filter(t => t.type === 'Trade' && t.duration);
+  
+  if (dateRange && dateRange.startDate && dateRange.endDate) {
+    filteredTrades = filteredTrades.filter(t => {
+      const tradeDate = new Date(t.date);
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      return tradeDate >= start && tradeDate <= end;
+    });
+  }
+  
+  if (selectedAccount && selectedAccount !== 'All') {
+    filteredTrades = filteredTrades.filter(t => t.account === selectedAccount);
+  }
+  
+  const durationPerformanceData = filteredTrades.map(trade => {
+    // Parse duration from format like "0:20:00" (hours:minutes:seconds)
+    const durationParts = trade.duration.split(':');
+    const hours = parseInt(durationParts[0]) || 0;
+    const minutes = parseInt(durationParts[1]) || 0;
+    const seconds = parseInt(durationParts[2]) || 0;
+    
+    // Convert to total minutes for better visualization
+    const totalMinutes = hours * 60 + minutes + seconds / 60;
+    
+    return {
+      x: totalMinutes + (Math.random() * 5 - 2.5), // Add slight jitter
+      y: trade.gainLoss - trade.fees
+    };
+  });
+  
+  return durationPerformanceData;
+};
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
