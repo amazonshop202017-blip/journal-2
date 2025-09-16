@@ -187,8 +187,15 @@ export const getNetDailyPerformance = (trades: Trade[], dateRange?: { startDate:
     dailyPL[date] += trade.gainLoss - trade.fees;
   });
   
-  const sortedDates = Object.keys(dailyPL).sort();
-  const labels = sortedDates.map(date => format(new Date(date), 'MM/dd/yy'));
+  // Sort dates and create labels and data arrays
+  const sortedDates = Object.keys(dailyPL).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  const labels = sortedDates.map(date => {
+    try {
+      return format(new Date(date), 'MM/dd/yy');
+    } catch {
+      return date;
+    }
+  });
   const data = sortedDates.map(date => dailyPL[date]);
   
   return { labels, data };
@@ -210,27 +217,36 @@ export const getTradeTimePerformance = (trades: Trade[], dateRange?: { startDate
     filteredTrades = filteredTrades.filter(t => t.account === selectedAccount);
   }
   
-  const timePerformanceData = filteredTrades.map(trade => {
+  const timePerformanceData = filteredTrades.map((trade, index) => {
     // Parse time from format like "3:00:00 PM" or "15:00:00"
     let hour = 0;
+    let minute = 0;
     const timeStr = trade.entryTime.toLowerCase();
     
     if (timeStr.includes('pm') || timeStr.includes('am')) {
       const [time, period] = timeStr.split(' ');
-      const [hourStr] = time.split(':');
+      const [hourStr, minuteStr] = time.split(':');
       hour = parseInt(hourStr);
+      minute = parseInt(minuteStr) || 0;
       if (period === 'pm' && hour !== 12) hour += 12;
       if (period === 'am' && hour === 12) hour = 0;
     } else {
-      const [hourStr] = timeStr.split(':');
+      const [hourStr, minuteStr] = timeStr.split(':');
       hour = parseInt(hourStr);
+      minute = parseInt(minuteStr) || 0;
     }
     
+    // Convert to decimal hours (e.g., 14:30 becomes 14.5)
+    const decimalHour = hour + (minute / 60);
+    
+    // Add slight jitter to prevent overlapping points
+    const jitter = (Math.random() - 0.5) * 0.3;
+    
     return {
-      x: hour + (Math.random() * 0.8 - 0.4), // Add slight jitter for better visualization
+      x: decimalHour + jitter,
       y: trade.gainLoss - trade.fees
     };
-  });
+  }).filter(point => !isNaN(point.x) && !isNaN(point.y));
   
   return timePerformanceData;
 };
@@ -251,7 +267,7 @@ export const getTradeDurationPerformance = (trades: Trade[], dateRange?: { start
     filteredTrades = filteredTrades.filter(t => t.account === selectedAccount);
   }
   
-  const durationPerformanceData = filteredTrades.map(trade => {
+  const durationPerformanceData = filteredTrades.map((trade, index) => {
     // Parse duration from format like "0:20:00" (hours:minutes:seconds)
     const durationParts = trade.duration.split(':');
     const hours = parseInt(durationParts[0]) || 0;
@@ -261,11 +277,14 @@ export const getTradeDurationPerformance = (trades: Trade[], dateRange?: { start
     // Convert to total minutes for better visualization
     const totalMinutes = hours * 60 + minutes + seconds / 60;
     
+    // Add slight jitter to prevent overlapping points
+    const jitter = (Math.random() - 0.5) * 5;
+    
     return {
-      x: totalMinutes + (Math.random() * 5 - 2.5), // Add slight jitter
+      x: Math.max(0, totalMinutes + jitter), // Ensure x is never negative
       y: trade.gainLoss - trade.fees
     };
-  });
+  }).filter(point => !isNaN(point.x) && !isNaN(point.y) && point.x >= 0);
   
   return durationPerformanceData;
 };

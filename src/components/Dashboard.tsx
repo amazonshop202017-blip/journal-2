@@ -102,8 +102,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
       label: 'Net Daily P&L',
       data: netDailyPerformance.data,
       backgroundColor: netDailyPerformance.data.map(value => value >= 0 ? '#10B981' : '#EF4444'),
-      borderColor: netDailyPerformance.data.map(value => value >= 0 ? '#059669' : '#DC2626'),
       borderWidth: 1,
+      borderRadius: 2,
     }]
   };
 
@@ -112,8 +112,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
     datasets: [{
       label: 'Trade Time Performance',
       data: tradeTimePerformance,
-      backgroundColor: tradeTimePerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
-      borderColor: tradeTimePerformance.map(point => point.y >= 0 ? '#059669' : '#DC2626'),
+      pointBackgroundColor: tradeTimePerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      pointBorderColor: tradeTimePerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      pointRadius: 4,
+      pointHoverRadius: 6,
     }]
   };
 
@@ -122,8 +124,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
     datasets: [{
       label: 'Trade Duration Performance',
       data: tradeDurationPerformance,
-      backgroundColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
-      borderColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#059669' : '#DC2626'),
+      pointBackgroundColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      pointBorderColor: tradeDurationPerformance.map(point => point.y >= 0 ? '#10B981' : '#EF4444'),
+      pointRadius: 4,
+      pointHoverRadius: 6,
     }]
   };
 
@@ -197,17 +201,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
             </div>
           </div>
           <BarChart data={netDailyData} height={200} options={{
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context: any) {
+                    const value = context.parsed.y;
+                    return `P&L: $${value.toFixed(2)}`;
+                  }
+                }
+              }
+            },
             scales: {
               x: {
                 display: true,
-                grid: { display: false }
+                grid: { 
+                  display: true,
+                  color: 'rgba(0, 0, 0, 0.1)',
+                  drawBorder: false,
+                },
+                ticks: {
+                  color: '#666',
+                  font: {
+                    size: 11,
+                  }
+                }
               },
               y: {
                 display: true,
-                grid: { color: '#f3f4f6' },
-                title: {
-                  display: true,
-                  text: 'P&L ($)'
+                grid: { 
+                  color: 'rgba(0, 0, 0, 0.1)',
+                  drawBorder: false,
+                },
+                ticks: {
+                  color: '#666',
+                  font: {
+                    size: 11,
+                  },
+                  callback: function(value: any) {
+                    return `$${value}`;
+                  }
                 }
               }
             }
@@ -230,17 +265,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
           <ScatterChart 
             data={tradeTimeData} 
             height={200} 
+            type="time"
             options={{
-              xAxisTitle: 'Entry Time (Hour)',
               scales: {
                 x: {
                   min: 0,
                   max: 24,
                   ticks: {
                     stepSize: 2,
-                    callback: function(value: any) {
-                      return value + ':00';
-                    }
                   }
                 }
               }
@@ -259,23 +291,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ trades, settings }) => {
           <ScatterChart 
             data={tradeDurationData} 
             height={200} 
-            options={{
-              xAxisTitle: 'Duration (Minutes)',
-              scales: {
-                x: {
-                  ticks: {
-                    callback: function(value: any) {
-                      const hours = Math.floor(value / 60);
-                      const minutes = Math.floor(value % 60);
-                      if (hours > 0) {
-                        return `${hours}h${minutes > 0 ? minutes + 'm' : ''}`;
-                      }
-                      return `${minutes}m`;
-                    }
-                  }
-                }
-              }
-            }}
+            type="duration"
           />
         </div>
       </div>
